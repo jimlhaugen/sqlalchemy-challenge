@@ -11,7 +11,7 @@ import sqlalchemy
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
-
+from flask import Flask, jsonify
 
 #################################################
 # Database Setup
@@ -20,7 +20,7 @@ engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
 Base = automap_base()
-Base.prepare(autoload_with=engine)
+
 
 # reflect the tables
 Base.prepare(autoload_with = engine, reflect = True)
@@ -51,25 +51,52 @@ app = Flask(__name__)
 def Precipitation():
     """Convert the query results from your precipitation analysis (i.e., retrieve only the last 12 months of data) to a dictionary using <date> as the key and <prcp> as the value."""
     """Returns the JSON represenation of the dictionary"""
+    dictionary = session.query(Measurement.date, Measurement.prcp).\
+    filter(Measurement.date >= '2016-08-23')
+
     return jsonify(dictionary)
+
 
 @app.route("/api/v1.0/stations")
 def Stations():
     """Return a JSON list of stations the dataset."""
-    return jsonify(stations)
+
+    active_stations = session.query(Measurement.station,func.count(Measurement.station)).\
+    group_by(Measurement.station).\
+    order_by(func.count(Measurement.station).desc()).all()
+    return jsonify(active_stations)
 
 @app.route("/api/v1.0/tobs")
-def justice_league():
+def Tobs():
     """Returns a JSON list of temperature observations of the previous year"""
-
-    return jsonify(justice_league_members)@app.route("/api/v1.0/justice-league")
+    tobs = session.query(Measurement.tobs).\
+    filter(Measurement.date.between('2016-08-23', '2017-08-23')).all()  # between is inclusive
+    return jsonify(tobs)
 
 @app.route("/api/v1.0/<start>")
-def justice_league():
-    """Return the justice league data as json"""
+def start_date():
+    """Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature for the start date"""
+    TMIN = session.query(func.min(Measurement.tobs)).\
+            filter(Measurement.date == '2016-08-23')
+    TAVG = session.query(func.avg(Measurement.tobs)).\
+            filter(Measurement.date == '2016-08-23')
+    TMAX = session.query(func.max(Measurement.tobs)).\
+            filter(Measurement.date == '2016-08-23')
+    min_avg_max = TMIN, TAVG, TMAX
+    min_avg_max_list = list(np.ravel(min_avg_max))
+    min_avg_max_return = {'TMIN':min_avg_max_list[0], 'TAVG':min_avg_max_list[1], 'TMAX':min_avg_max_list[2]}
+    return jsonify(min_avg_max_return)
 
-    return jsonify(justice_league_members)
-
-@app.route("/api/v1.0/<end>")
-def justice_league():
-    """Return the justice league data as json"""
+@app.route("/api/v1.0/<start>/<end>")
+def start_to_end():
+    """Return a JSON list of the minimum temperature, the average temperature, and the maximum temperature from the start date to the end date, inclusive"""
+    TMIN = session.query(func.min(Measurement.tobs)).\
+            filter(Measurement.date.between('2016-08-23', '2017-08-23'))
+    TAVG = session.query(func.avg(Measurement.tobs)).\
+            filter(Measurement.date.between('2016-08-23', '2017-08-23'))
+    TMAX = session.query(func.max(Measurement.tobs)).\
+            filter(Measurement.date.between('2016-08-23', '2017-08-23'))
+    min_avg_max = TMIN, TAVG, TMAX
+    min_avg_max_list = list(np.ravel(min_avg_max))
+    min_avg_max_return = {'TMIN':min_avg_max_list[0], 'TAVG':min_avg_max_list[1], 'TMAX':min_avg_max_list[2]}
+    return jsonify(min_avg_max_return)
